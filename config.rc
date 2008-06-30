@@ -2,7 +2,9 @@
 port=5678
 host=
 blast_options=-e 1e-3
-chunksize=80
+chunksize=50
+n_chunks=10
+dump_frequency=10
 blastdb=/mnt/home/ctb/test2/animal-refseq.protein.faa
 program=blastx
 

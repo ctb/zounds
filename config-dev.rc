@@ -1,11 +1,13 @@
 [DEFAULT]
 blast_options=-e 1e-3
-chunksize=10
+chunksize=1
+dump_frequency=3
+n_chunks=20
 
 [test]
 port=5679
 host=
 sequences=/scratch/titus/ctene/refseq/top500.fa
 store_db=top500.db
-blastdb=/home/ctb/test2/animal-refseq.protein.faa
+blastdb=/home/ctb/lustre/db/animal-refseq.protein.faa
 program=blastx

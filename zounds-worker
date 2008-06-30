@@ -5,10 +5,9 @@ from subprocess import Popen, PIPE
 from blastparser import parse_string
 from cPickle import dumps
 
-DUMP_FREQUENCY=10
 DEFAULT_SERVER='http://iorich.caltech.edu:5678'
 
-VERBOSE=False
+VERBOSE=True
 
 def do_blast(program, against_db, extra_args, name, seq):
     seqs = ">%s\n%s\n" % (name, seq,)
@@ -24,12 +23,12 @@ def parse_blast(out):
     records = list(records)
     return records
 
-def handle_sequences(x, server):
+def handle_sequences(program, against_db, extra_args, seqs):
     z = []
-    program, against_db, extra_args, seqs = x
     for n, (name, seq) in enumerate(seqs):
         if VERBOSE:
             print 'starting BLAST %d of %d...' % (n + 1, len(seqs))
+            
         out, err = do_blast(program, against_db, extra_args, name, seq)
 
         if VERBOSE:
@@ -45,19 +44,8 @@ def handle_sequences(x, server):
         else:
             assert len(records) == 1
             record = records[0]
-            
-        pickle = dumps(record)
-        z.append((name, xmlrpclib.Binary(pickle)))
 
-        if len(z) == DUMP_FREQUENCY:
-            s.deposit_results(z)
-            z = []
-
-    if len(z):
-        s.deposit_results(z)
-        z = []
-
-    return
+        yield name, record
 
 if __name__ == '__main__':
     server_url = DEFAULT_SERVER
@@ -66,9 +54,31 @@ if __name__ == '__main__':
         print 'Using alternate zounds server:', server_url
 
     s = xmlrpclib.Server(server_url)
-    
-    x = s.retrieve_sequences()
-    if x:
-       handle_sequences(x, s)
-    else:
-        print >>sys.stderr, "no sequences received -- bye!"
+
+    (chunksize, n_chunks, dump_frequency) = s.get_parameters()
+
+    results = []
+    for i in range(n_chunks):
+        if VERBOSE:
+            print 'asking for %d sequences' % (chunksize,)
+            
+        x = s.retrieve_sequences(chunksize)
+        if not x:
+            break
+        
+        program, against_db, extra_args, seqs = x
+        for name, record in handle_sequences(program, against_db,
+                                             extra_args, seqs):
+            pickle = dumps(record)
+            results.append((name, xmlrpclib.Binary(pickle)))
+
+            if len(results) >= dump_frequency:
+                if VERBOSE:
+                    print 'dumping %d results' % (len(results),)
+                s.deposit_results(results)
+                results = []
+
+    if results:
+        if VERBOSE:
+            print 'dumping %d results' % (len(results),)
+        s.deposit_results(results)
