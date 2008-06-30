@@ -1,0 +1,26 @@
+[DEFAULT]
+port=5678
+host=
+blast_options=-e 1e-3
+chunksize=80
+blastdb=/mnt/home/ctb/test2/animal-refseq.protein.faa
+program=blastx
+
+[pang-454.x.animal-refseq]
+sequences=/scratch/titus/ctene/data/pang-454.fa
+store_db=/scratch/titus/ctene/pang-454.x.animal-refseq.db
+
+[dbest-15k.x.animal-refseq]
+chunksize=100
+sequences=/scratch/titus/ctene/data/dbest-15k.fa
+store_db=/scratch/titus/ctene/dbest-15k.x.animal-refseq.db
+
+[pang-454-assembly.x.animal-refseq]
+chunksize=42
+sequences=/scratch/titus/ctene/data/pang-454-assembly.fa
+store_db=/scratch/titus/ctene/pang-454-assembly.x.animal-refseq.db
+
+[tracedb-3k.x.animal-refseq]
+chunksize=16
+sequences=/scratch/titus/ctene/data/tracedb-3k.fa
+store_db=/scratch/titus/ctene/tracedb-3k.x.animal-refseq.db

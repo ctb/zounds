@@ -1,0 +1,74 @@
+#! /usr/bin/env python
+import sys
+import xmlrpclib
+from subprocess import Popen, PIPE
+from blastparser import parse_string
+from cPickle import dumps
+
+DUMP_FREQUENCY=10
+DEFAULT_SERVER='http://iorich.caltech.edu:5678'
+
+VERBOSE=False
+
+def do_blast(program, against_db, extra_args, name, seq):
+    seqs = ">%s\n%s\n" % (name, seq,)
+
+    p = Popen("blastall -d %s -p %s %s" % (against_db, program, extra_args),
+              shell=True, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+    (out, err) = p.communicate(seqs)
+
+    return out, err
+
+def parse_blast(out):
+    records = parse_string(out)
+    records = list(records)
+    return records
+
+def handle_sequences(x, server):
+    z = []
+    program, against_db, extra_args, seqs = x
+    for n, (name, seq) in enumerate(seqs):
+        if VERBOSE:
+            print 'starting BLAST %d of %d...' % (n + 1, len(seqs))
+        out, err = do_blast(program, against_db, extra_args, name, seq)
+
+        if VERBOSE:
+            print '   ... finished.'
+
+        records = parse_blast(out)
+
+        # error?
+        if len(records) == 0:
+            print '--\n** sequence: %s\n%s' % (name, out)
+            print >>sys.stderr, '--\n** sequence: %s\n%s' % (name, err)
+            record = ()
+        else:
+            assert len(records) == 1
+            record = records[0]
+            
+        pickle = dumps(record)
+        z.append((name, xmlrpclib.Binary(pickle)))
+
+        if len(z) == DUMP_FREQUENCY:
+            s.deposit_results(z)
+            z = []
+
+    if len(z):
+        s.deposit_results(z)
+        z = []
+
+    return
+
+if __name__ == '__main__':
+    server_url = DEFAULT_SERVER
+    if len(sys.argv) == 2:
+        server_url = sys.argv[1]
+        print 'Using alternate zounds server:', server_url
+
+    s = xmlrpclib.Server(server_url)
+    
+    x = s.retrieve_sequences()
+    if x:
+       handle_sequences(x, s)
+    else:
+        print >>sys.stderr, "no sequences received -- bye!"
