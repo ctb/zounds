@@ -1,8 +1,9 @@
 zounds
 ======
 
-'zounds' is a client-server setup for running BLASTs on clusters by
-using XML-RPC to coordinate between the server & clients.
+'zounds' is a client-server setup for running many parallel BLASTs on
+clusters of computers.  It uses XML-RPC to coordinate between the
+server & clients.
 
 The 'zounds-central' process runs on the server and serves both
 configuration information and sequences to clients upon request.
@@ -31,6 +32,22 @@ the individual cluster machines need to be able to talk to the server
 over the network.  However, the server never contacts the clients so
 the cluster can be hidden behind a firewall and/or NAT.
 
+Installing
+----------
+
+You'll need to install `Python <http://www.python.org>`__, `pyparsing
+<http://pyparsing.wikispaces.com/>`__, and `blastparser
+<http://darcs.idyll.org/~t/projects/blastparser-latest.tar.gz>`__, as
+well as BLAST and whatever BLAST databases you need.
+
+For the moment, you need to get zounds via 'git', at ::
+
+    git://iorich.caltech.edu/git/public/zounds
+
+or trust that my latest tarball (posted `here
+<http://iorich.caltech.edu/~t/transfer/zounds-latest.tar.gz>`__) is in
+fact a tarball of the latest version.
+
 Running 'zounds-central'
 ------------------------
 
@@ -41,6 +58,17 @@ Briefly, ::
 See 'config.rc' for examples.  The only trickiness is that the
 'blastdb' must be a path accessible to the 'zounds-worker' processes,
 while the 'sequences' and 'store_db' must be paths on the server.
+
+An Example
+----------
+
+In one shell, run: ::
+
+   python zounds-central config-dev.rc test
+
+In another shell, run: ::
+
+   python zounds-worker http://localhost:5678/
 
 Retrieving results
 ------------------
@@ -91,10 +119,10 @@ How well does it scale?
 -----------------------
 
 I've BLASTed 200,000 sequences against the 'nr' database using 128
-simultaneous workers.  In theory the disk and network I/O should be
-the most time-consuming aspect of the server, and since everything
-on the server side is threaded, I don't expect there to be server-side
-performance issues.
+simultaneous workers, without any problems. In theory the disk and
+network I/O should be the most time-consuming aspect of the server,
+and since everything on the server side is threaded, I don't expect
+there to be server-side performance issues.
 
 On the client side there are likely to be a few performance problems:
 
