@@ -64,4 +64,34 @@ up by using the raw bsddb database to retrieve the keys into the shelf: ::
    for key in _db:
       value = db[key]
 
+How well does it scale?
+-----------------------
+
+I've BLASTed 200,000 sequences against the 'nr' database using 128
+simultaneous workers.  In theory the disk and network I/O should be
+the most time-consuming aspect of the server, and since everything
+on the server side is threaded, I don't expect there to be server-side
+performance issues.
+
+On the client side there are likely to be a few performance problems:
+
+ 1. BLAST is run on each sequence individually, for simplicity's sake.
+    This means the BLAST database is reloaded for every BLAST.  This
+    could be optimized at the expense of a bit more code complexity
+    in 'zounds-worker'.
+
+ 2. The blastparser library is sloooooow.
+
+ 3. The worker submits the BLAST data to the server directly, without
+    starting a thread.  This means that if the server or network
+    is really busy, the worker may be network-bound.  (This should be
+    particularly easy to fix.)
+
+None of these problems prevent zounds from working and so I just
+ignore 'em.  You can fix them if you like.  Personally I'd prefer to
+keep the worker code as simple as possible, but it should be fairly
+easy to hack performance improvements in if you care.
+
+--
+
 CTB: Woods Hole MBL, 7/2008
