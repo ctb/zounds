@@ -13,8 +13,9 @@ from optparse import OptionParser
 
 import blastparser
 
-DEFAULT_SERVER='http://iorich.caltech.edu:5678'
+DEFAULT_SERVER='http://iorich.caltech.edu:5679'
 VERBOSE=False
+DEBUG=False
 
 ###
 
@@ -24,8 +25,13 @@ def do_blast(program, against_db, extra_args, name, seq):
     """
     seqs = ">%s\n%s\n" % (name, seq,)
 
-    p = Popen("blastall -d %s -p %s %s" % (against_db, program, extra_args),
-              shell=True, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+    cmd = [ "blastall", "-d", against_db, "-p", program, extra_args ]
+    
+    if DEBUG:
+        sys.stdout.write(seqs)
+        print '** running:', cmd
+
+    p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE)
     (out, err) = p.communicate(seqs)
 
     return out, err
@@ -49,6 +55,10 @@ def handle_sequences(program, against_db, extra_args, seqs):
             print 'starting BLAST %d of %d...' % (n + 1, len(seqs))
             
         out, err = do_blast(program, against_db, extra_args, name, seq)
+
+        if DEBUG:
+            sys.stdout.write(out)
+            sys.stderr.write(err)
 
         if VERBOSE:
             print '   ... finished.'
@@ -122,10 +132,16 @@ if __name__ == '__main__':
     parser.add_option("-v", "--verbose", dest="verbose", default=False,
                       action="store_true",
                       help="Print verbose status messages")
+    parser.add_option("-d", "--debug", dest="debug", default=False,
+                      action="store_true",
+                      help="Print BLAST output")
+    
     (options, args) = parser.parse_args()
 
     if options.verbose:
         VERBOSE = True
+    if options.debug:
+        DEBUG = True
     
     server_url = DEFAULT_SERVER
     if len(args) == 1:
