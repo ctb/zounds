@@ -3,7 +3,7 @@ import sys
 import xmlrpclib
 
 DUMP_FREQUENCY=10
-DEFAULT_SERVER='http://iorich.caltech.edu:5678'
+DEFAULT_SERVER='http://iorich.caltech.edu:5679'
 
 if __name__ == '__main__':
     server_url = DEFAULT_SERVER

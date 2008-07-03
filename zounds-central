@@ -9,146 +9,145 @@ from cPickle import loads
 import time
 from ConfigParser import SafeConfigParser
 
-chunksize = None
-n_chunks = None
-dump_frequency = None
-fasta_file = None
-db_file = None
-against_db_name = None
-blast_program = None
-extra_blast_args = None
 host = None
 port = None
-filter = None
+done = False
+
+class ZoundsCentral(object):
+    def __init__(self, config_obj, section_name):
+        self.section_name = section_name
+        self.chunksize = config_obj.getint(section_name, 'chunksize')
+        self.n_chunks = config_obj.getint(section_name, 'n_chunks')
+        self.dump_frequency = config_obj.getint(section_name, 'dump_frequency')
+        self.fasta_file = config_obj.get(section_name, 'sequences')
+        self.db_file = config_obj.get(section_name, 'store_db')
+        self.against_db_name = config_obj.get(section_name, 'blastdb')
+        self.blast_program = config_obj.get(section_name, 'program')
+        self.extra_blast_args = config_obj.get(section_name, 'blast_options')
+        self.filter = config_obj.get(section_name, 'filter')
+
+        print 'opening sequences:', self.fasta_file
+        self.sequences = BlastDB(self.fasta_file)
+
+        print 'opening database:', self.db_file
+        self.db = btopen(self.db_file, 'c')
+
+        self._undone = set()
+        self._dbcache = dict()
+
+        self.retrieve_lock = threading.Lock()
+
+        print 'calculating undone seqs...',
+        self._calc_undone()
+        print '%d undone' % (len(self._undone),)
+
+    def _calc_undone(self):
+        db_keys = set(self.db.keys())
+        fasta_keys = set([k for k in self.sequences ])
+        self._undone = fasta_keys.difference(db_keys)
+
+        self._undone_initial_count = len(self._undone)
+        self._undone_current_count = self._undone_initial_count
+
+    def save_cache_to_disk(self):
+        keys = self._dbcache.keys()
+        if not keys:
+            return
+
+        db = self.db
+        _dbcache = self._dbcache
+
+        for k in keys:
+            db[k] = _dbcache[k]
+            del _dbcache[k]
+
+        self._undone_current_count -= len(keys)
+        print 'saved %d from cache to disk, leaving %d' % (len(keys),
+                                                  self._undone_current_count)
+
+        db.sync()
+
+    def estimate_undone(self):
+        return self._undone_current_count
+
+    def get_parameters(self):
+        return (self.chunksize, self.n_chunks, self.dump_frequency,
+                self.filter)
+
+    def retrieve_sequences(self, chunksize):
+        _undone = self._undone
+        if not _undone:
+            return ()
+
+        self.retrieve_lock.acquire()
+
+        try:
+            i = iter(_undone)
+            z = []
+            for k in range(chunksize):
+                try:
+                    z.append(i.next())
+                except StopIteration:
+                    break
+
+            print 'returning %d sequences' % (len(z),)
+
+            seqs = [ (k, str(self.sequences[k])) for k in z ]
+            _undone.difference_update(z)
+
+            print '...%d undone' % (len(_undone))
+
+            return (self.blast_program,
+                    self.against_db_name,
+                    self.extra_blast_args,
+                    seqs)
+        finally:
+            self.retrieve_lock.release()
+
+    def deposit_results(self, results):
+        for k in results:
+            print k[0], loads(k[1].data)
+            self._dbcache[k[0]] = k[1].data
+
+        print 'deposited %d' % (len(results),)
+
+        return ()
+
+def cache_saver(obj):
+    while not done:
+        obj.save_cache_to_disk()
+        time.sleep(1)
 
 ###
 
 def load_config(filename, section_name):
-    global chunksize, fasta_file, db_file, against_db_name, n_chunks
-    global dump_frequency, blast_program, extra_blast_args, host, port
-    global filter
+    global host, port
 
     fp = open(filename)
     
-    config = SafeConfigParser()
-    config.readfp(fp)
+    config_obj = SafeConfigParser()
+    config_obj.readfp(fp)
 
-    chunksize = config.getint(section_name, 'chunksize')
-    n_chunks = config.getint(section_name, 'n_chunks')
-    dump_frequency = config.getint(section_name, 'dump_frequency')
-    fasta_file = config.get(section_name, 'sequences')
-    db_file = config.get(section_name, 'store_db')
-    against_db_name = config.get(section_name, 'blastdb')
-    blast_program = config.get(section_name, 'program')
-    extra_blast_args = config.get(section_name, 'blast_options')
-    host = config.get(section_name, 'host')
-    port = config.getint(section_name, 'port')
-    filter = config.get(section_name, 'filter')
+    host = config_obj.get(section_name, 'host')
+    port = config_obj.getint(section_name, 'port')
 
-###
-
-_undone = set()
-_undone_initial_count = None
-_undone_current_count = None
-
-def _calc_undone():
-    global _undone, _undone_initial_count, _undone_current_count
-
-    db_keys = set(db.keys())
-    fasta_keys = set([k for k in sequences ])
-    _undone = fasta_keys.difference(db_keys)
-
-    if _undone_initial_count is None:
-        _undone_initial_count = len(_undone)
-        _undone_current_count = _undone_initial_count
-
-done = False
-_dbcache = dict()
-def save_cache_to_disk():
-    global _dbcache, _undone_current_count
-    
-    keys = _dbcache.keys()
-    if not keys:
-        return
-        
-    for k in keys:
-        db[k] = _dbcache[k]
-        del _dbcache[k]
-
-    _undone_current_count -= len(keys)
-    print 'saved %d from cache to disk, leaving %d' % (len(keys),
-                                                       _undone_current_count)
-
-    db.sync()
-
-def cache_saver():
-    while not done:
-        time.sleep(1)
-        save_cache_to_disk()
+    return config_obj
 
 ####
-
-retrieve_lock = threading.Lock()
-
-def estimate_undone():
-    global _undone_current_count
-    return _undone_current_count
-
-def get_parameters():
-    return (chunksize, n_chunks, dump_frequency, filter)
-
-def retrieve_sequences(chunksize):
-    global _undone
-
-    if not _undone:
-        return ()
-
-    retrieve_lock.acquire()
-
-    try:
-
-        i = iter(_undone)
-        z = []
-        for k in range(chunksize):
-            try:
-                z.append(i.next())
-            except StopIteration:
-                break
-
-        print 'returning %d sequences' % (len(z),)
-
-        seqs = [ (k, str(sequences[k])) for k in z ]
-        _undone.difference_update(z)
-
-        print '...%d undone' % (len(_undone))
-
-        return (blast_program, against_db_name, extra_blast_args, seqs)
-    finally:
-        retrieve_lock.release()
-
-def deposit_results(results):
-    for k in results:
-        print k[0], loads(k[1].data)
-        _dbcache[k[0]] = k[1].data
-
-    print 'deposited %d' % (len(results),)
-
-    return ()
 
 ####
 
 class ThreadedServer(ThreadingMixIn, SimpleXMLRPCServer):
     pass
 
-def create_server(host, port):
+def create_server(host, port, obj):
 
     # Create server
     server = ThreadedServer((host, port))
-    server.register_function(get_parameters, 'get_parameters')
-    server.register_function(retrieve_sequences, 'retrieve_sequences')
-    server.register_function(deposit_results, 'deposit_results')
-#    server.register_function(recalc_undone, 'recalc_undone')
-    server.register_function(estimate_undone, 'estimate_undone')
+    server.register_function(obj.get_parameters, 'get_parameters')
+    server.register_function(obj.retrieve_sequences, 'retrieve_sequences')
+    server.register_function(obj.deposit_results, 'deposit_results')
+    server.register_function(obj.estimate_undone, 'estimate_undone')
 
     return server
 
@@ -156,31 +155,17 @@ def create_server(host, port):
 
 if __name__ == '__main__':
     config_file, section_name = sys.argv[1], sys.argv[2]
-    load_config(config_file, section_name)
+    config_obj = load_config(config_file, section_name)
 
-    assert chunksize
-    assert n_chunks
-    assert fasta_file
-    assert db_file
-    assert against_db_name
-    assert blast_program is not None
+    central = ZoundsCentral(config_obj, section_name)
+
     assert host is not None
     assert port
 
-    print 'opening sequences:', fasta_file
-    sequences = BlastDB(fasta_file)
-
-    print 'opening database:', db_file
-    db = btopen(db_file, 'c')
-
-    print 'calculating undone seqs...',
-    _calc_undone()
-    print '%d undone' % (len(_undone),)
-
-    saver_thread = threading.Thread(target=cache_saver)
+    saver_thread = threading.Thread(target=cache_saver, args=(central,))
     saver_thread.start()
 
-    server = create_server(host, port)
+    server = create_server(host, port, central)
     try:
         print 'serving %s on port %s...' % (section_name, port)
         server.serve_forever()
@@ -188,5 +173,5 @@ if __name__ == '__main__':
         done = True
         print 'waiting for saver thread to finish...'
         saver_thread.join()
-        save_cache_to_disk()
-        db.close()
+        central.save_cache_to_disk()
+        central.db.close()
