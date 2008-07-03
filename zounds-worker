@@ -1,15 +1,27 @@
 #! /usr/bin/env python
+"""
+Worker program for zounds: run this on remote systems to retrieve
+sequences to BLAST from the zounds-central server, to which results
+will then be returned.
+"""
+
 import sys
 import xmlrpclib
 from subprocess import Popen, PIPE
-from blastparser import parse_string
 from cPickle import dumps
+from optparse import OptionParser
+
+import blastparser
 
 DEFAULT_SERVER='http://iorich.caltech.edu:5678'
-
 VERBOSE=False
 
+###
+
 def do_blast(program, against_db, extra_args, name, seq):
+    """
+    Actually do the BLAST and return results.
+    """
     seqs = ">%s\n%s\n" % (name, seq,)
 
     p = Popen("blastall -d %s -p %s %s" % (against_db, program, extra_args),
@@ -19,11 +31,18 @@ def do_blast(program, against_db, extra_args, name, seq):
     return out, err
 
 def parse_blast(out):
-    records = parse_string(out, ignore_errors=True)
+    """
+    Parse the BLAST output into an object.
+    """
+    records = blastparser.parse_string(out, ignore_errors=True)
     records = list(records)
     return records
 
 def handle_sequences(program, against_db, extra_args, seqs):
+    """
+    Run through the given sequences, doing BLASTs and returning
+    results via yield.
+    """
     z = []
     for n, (name, seq) in enumerate(seqs):
         if VERBOSE:
@@ -47,12 +66,13 @@ def handle_sequences(program, against_db, extra_args, seqs):
 
         yield name, record
 
-if __name__ == '__main__':
-    server_url = DEFAULT_SERVER
-    if len(sys.argv) == 2:
-        server_url = sys.argv[1]
-        print 'Using alternate zounds server:', server_url
-
+def main(server_url):
+    """
+    Contact the given zounds-central server via XML-RPC; get parameters;
+    import filter function, if any; and loop until done, returning
+    intermediate results as specified.
+    """
+    
     s = xmlrpclib.Server(server_url)
 
     (chunksize, n_chunks, dump_frequency, filter) = s.get_parameters()
@@ -69,7 +89,12 @@ if __name__ == '__main__':
             
         x = s.retrieve_sequences(chunksize)
         if not x:
-            break
+            if VERBOSE: print 'no more sequences; exiting'
+            break                       # done.
+
+        #
+        # unpack arguments, do blasts.
+        #
         
         program, against_db, extra_args, seqs = x
         for name, record in handle_sequences(program, against_db,
@@ -91,3 +116,20 @@ if __name__ == '__main__':
         if VERBOSE:
             print 'dumping %d results' % (len(results),)
         s.deposit_results(results)
+
+if __name__ == '__main__':
+    parser = OptionParser()
+    parser.add_option("-v", "--verbose", dest="verbose", default=False,
+                      action="store_true",
+                      help="Print verbose status messages")
+    (options, args) = parser.parse_args()
+
+    if options.verbose:
+        VERBOSE = True
+    
+    server_url = DEFAULT_SERVER
+    if len(args) == 1:
+        server_url = args[0]
+        print 'Using alternate zounds server:', server_url
+
+    main(server_url)
