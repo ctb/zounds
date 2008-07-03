@@ -1,4 +1,13 @@
+"""
+Miscellaneous filters.
+"""
+
 def top_matches_only(record):
+    """
+    Return a list of the top (match, bitscore) tuples with equal bitscores.
+
+    This is useful for my MEGAN analysis stuff. --CTB
+    """
     if not record:
         return ()
 

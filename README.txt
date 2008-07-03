@@ -64,6 +64,29 @@ up by using the raw bsddb database to retrieve the keys into the shelf: ::
    for key in _db:
       value = db[key]
 
+Using filters
+-------------
+
+Filters are useful for situations where you only need a small subset
+of the information from BLAST: rather than pickling and encoding a
+full BLAST record, filters can reduce the full blastparser.BlastRecord
+to something much smaller.
+
+The filter function can do anything you want, as long as it takes in a
+BlastRecord and returns something picklable.  For now, it must be
+specified in the config file as `module.function`; `module` will be
+imported and then `function` will be retrieved from that namespace.
+The filter is then run on each record, like so:
+
+            if filter:
+                record = filter(record)
+
+Note that this all occurs *on the worker* so you will need to make sure
+that your filter module(s) are available to 'zounds-worker'.
+
+There's an example filter function in 'filters.py', function
+'top_matches_only'.
+
 How well does it scale?
 -----------------------
 
@@ -90,7 +113,7 @@ On the client side there are likely to be a few performance problems:
 None of these problems prevent zounds from working and so I just
 ignore 'em.  You can fix them if you like.  Personally I'd prefer to
 keep the worker code as simple as possible, but it should be fairly
-easy to hack performance improvements in if you care.
+easy to hack performance improvements in if you need or want them.
 
 --
 

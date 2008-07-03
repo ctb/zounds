@@ -10,6 +10,7 @@ import xmlrpclib
 from subprocess import Popen, PIPE
 from cPickle import dumps
 from optparse import OptionParser
+import socket
 
 import blastparser
 
@@ -85,7 +86,11 @@ def main(server_url):
     
     s = xmlrpclib.Server(server_url)
 
-    (chunksize, n_chunks, dump_frequency, filter) = s.get_parameters()
+    try:
+        (chunksize, n_chunks, dump_frequency, filter) = s.get_parameters()
+    except socket.error:
+        print >>sys.stderr, "cannot connect to server; exiting"
+        sys.exit(-1)
 
     if filter:
         module_name, filter_fn = filter.split('.')

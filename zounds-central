@@ -15,6 +15,9 @@ done = False
 
 class ZoundsCentral(object):
     def __init__(self, config_obj, section_name):
+        """
+        Initialize: load config & databases, calculate initial workload.
+        """
         self._initialize(config_obj, section_name)
         self.section_name = section_name
 
@@ -34,6 +37,7 @@ class ZoundsCentral(object):
         print '%d undone' % (len(self._undone),)
 
     def _initialize(self, config_obj, section_name):
+        "Load parameters from the config obj and attach them to 'self'."
         self.chunksize = config_obj.getint(section_name, 'chunksize')
         self.n_chunks = config_obj.getint(section_name, 'n_chunks')
         self.dump_frequency = config_obj.getint(section_name, 'dump_frequency')
@@ -45,6 +49,7 @@ class ZoundsCentral(object):
         self.filter = config_obj.get(section_name, 'filter')
 
     def _calc_undone(self):
+        "Calculate how many sequences do NOT have BLAST records attached."
         db_keys = set(self.db.keys())
         fasta_keys = set([k for k in self.sequences ])
         self._undone = fasta_keys.difference(db_keys)
@@ -53,7 +58,12 @@ class ZoundsCentral(object):
         self._undone_current_count = self._undone_initial_count
 
     def save_cache_to_disk(self):
-        "Flush cache of results to disk."
+        """
+        Flush the in-memory cache of BLAST results to disk.
+        
+        Since bsddb does not seem to be threadsafe for writes, this
+        should never be called from more than one thread.
+        """
         keys = self._dbcache.keys()
         if not keys:
             return                      # nothing to save
@@ -63,7 +73,7 @@ class ZoundsCentral(object):
         db = self.db
         _dbcache = self._dbcache
 
-        for k in keys:
+        for k in keys:                  # could we just use an update here?
             db[k] = _dbcache[k]
             del _dbcache[k]
         db.sync()
@@ -75,6 +85,7 @@ class ZoundsCentral(object):
     ### XML-RPC accessible functions
 
     def estimate_undone(self):
+        "XML-RPC function: return how many BLASTs remain."
         return self._undone_current_count
 
     def get_parameters(self):
@@ -88,6 +99,8 @@ class ZoundsCentral(object):
         if not _undone:
             return ()
 
+        # lock, so that multiple threads don't get the same set of sequences.
+        # there may be a nicer way of doing this.
         self.retrieve_lock.acquire()
 
         try:
@@ -114,27 +127,23 @@ class ZoundsCentral(object):
             self.retrieve_lock.release()
 
     def deposit_results(self, results):
-        for k in results:
-            print k[0], loads(k[1].data)
-            self._dbcache[k[0]] = k[1].data
+        "XML-RPC function: save results from the client into the cache."
+        for (key, binary_obj) in results:
+            self._dbcache[key] = binary_obj.data
 
         print 'deposited %d' % (len(results),)
 
-        return ()
+        return 0
 
 ###
 
 def load_config(filename, section_name):
     "Load in the configuration"
-    global host, port
-
+    
     fp = open(filename)
     
     config_obj = SafeConfigParser()
     config_obj.readfp(fp)
-
-    host = config_obj.get(section_name, 'host')
-    port = config_obj.getint(section_name, 'port')
 
     return config_obj
 
@@ -159,25 +168,35 @@ def cache_saver(obj, delay=1):
 
 ####
 
-if __name__ == '__main__':
-    config_file, section_name = sys.argv[1], sys.argv[2]
-    config_obj = load_config(config_file, section_name)
+def main(config_obj, section_name, host, port):
+    global done
 
+    # create the object to manage the BLAST stuff
     central = ZoundsCentral(config_obj, section_name)
 
-    assert host is not None
-    assert port
-
+    # start the thread to save objects to disk
     saver_thread = threading.Thread(target=cache_saver, args=(central,))
     saver_thread.start()
 
+    # start the XML-RPC server
     server = create_server(host, port, central)
     try:
-        print 'serving %s on port %s...' % (section_name, port)
-        server.serve_forever()
-    except KeyboardInterrupt:
-        done = True
+        try:
+            print 'serving %s on port %s...' % (section_name, port)
+            server.serve_forever()
+        except KeyboardInterrupt:
+            done = True
+    finally:
         print 'waiting for saver thread to finish...'
         saver_thread.join()
         central.save_cache_to_disk()
         central.db.close()
+
+if __name__ == '__main__':
+    config_file, section_name = sys.argv[1], sys.argv[2]
+    config_obj = load_config(config_file, section_name)
+
+    host = config_obj.get(section_name, 'host')
+    port = config_obj.getint(section_name, 'port')
+
+    main(config_obj, section_name, host, port)

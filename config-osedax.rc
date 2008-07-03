@@ -1,0 +1,23 @@
+[DEFAULT]
+blast_options=-e 1e-3
+chunksize=10
+dump_frequency=10
+n_chunks=1000
+filter=
+
+[M183.x.nr]
+port=5678
+host=
+sequences=/scratch2/titus/osedax/M183.read.fasta
+store_db=/scratch2/titus/osedax/M183.x.nr.db
+blastdb=/home/ctb/lustre/db/nr
+program=blastx
+filter=filters.top_matches_only
+
+[nr.x.M183]
+port=5678
+host=
+sequences=/scratch2/titus/osedax/hits-nr.fa
+store_db=/scratch2/titus/osedax/hits-nr.x.M183.db
+blastdb=/mnt/home/ctb/lustre/osedax/M183-reads.fa
+program=tblastn
