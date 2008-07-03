@@ -15,16 +15,8 @@ done = False
 
 class ZoundsCentral(object):
     def __init__(self, config_obj, section_name):
+        self._initialize(config_obj, section_name)
         self.section_name = section_name
-        self.chunksize = config_obj.getint(section_name, 'chunksize')
-        self.n_chunks = config_obj.getint(section_name, 'n_chunks')
-        self.dump_frequency = config_obj.getint(section_name, 'dump_frequency')
-        self.fasta_file = config_obj.get(section_name, 'sequences')
-        self.db_file = config_obj.get(section_name, 'store_db')
-        self.against_db_name = config_obj.get(section_name, 'blastdb')
-        self.blast_program = config_obj.get(section_name, 'program')
-        self.extra_blast_args = config_obj.get(section_name, 'blast_options')
-        self.filter = config_obj.get(section_name, 'filter')
 
         print 'opening sequences:', self.fasta_file
         self.sequences = BlastDB(self.fasta_file)
@@ -41,6 +33,17 @@ class ZoundsCentral(object):
         self._calc_undone()
         print '%d undone' % (len(self._undone),)
 
+    def _initialize(self, config_obj, section_name):
+        self.chunksize = config_obj.getint(section_name, 'chunksize')
+        self.n_chunks = config_obj.getint(section_name, 'n_chunks')
+        self.dump_frequency = config_obj.getint(section_name, 'dump_frequency')
+        self.fasta_file = config_obj.get(section_name, 'sequences')
+        self.db_file = config_obj.get(section_name, 'store_db')
+        self.against_db_name = config_obj.get(section_name, 'blastdb')
+        self.blast_program = config_obj.get(section_name, 'program')
+        self.extra_blast_args = config_obj.get(section_name, 'blast_options')
+        self.filter = config_obj.get(section_name, 'filter')
+
     def _calc_undone(self):
         db_keys = set(self.db.keys())
         fasta_keys = set([k for k in self.sequences ])
@@ -50,31 +53,37 @@ class ZoundsCentral(object):
         self._undone_current_count = self._undone_initial_count
 
     def save_cache_to_disk(self):
+        "Flush cache of results to disk."
         keys = self._dbcache.keys()
         if not keys:
-            return
+            return                      # nothing to save
 
+        # Run through and save each cached result into the database.
+        
         db = self.db
         _dbcache = self._dbcache
 
         for k in keys:
             db[k] = _dbcache[k]
             del _dbcache[k]
+        db.sync()
 
         self._undone_current_count -= len(keys)
         print 'saved %d from cache to disk, leaving %d' % (len(keys),
                                                   self._undone_current_count)
 
-        db.sync()
+    ### XML-RPC accessible functions
 
     def estimate_undone(self):
         return self._undone_current_count
 
     def get_parameters(self):
-        return (self.chunksize, self.n_chunks, self.dump_frequency,
-                self.filter)
+        "XML-RPC function: get basic BLAST parameters"
+        return (self.chunksize, self.n_chunks,
+                self.dump_frequency, self.filter)
 
     def retrieve_sequences(self, chunksize):
+        "XML-RPC function: retrieve sequences to BLAST."
         _undone = self._undone
         if not _undone:
             return ()
@@ -113,14 +122,10 @@ class ZoundsCentral(object):
 
         return ()
 
-def cache_saver(obj):
-    while not done:
-        obj.save_cache_to_disk()
-        time.sleep(1)
-
 ###
 
 def load_config(filename, section_name):
+    "Load in the configuration"
     global host, port
 
     fp = open(filename)
@@ -133,16 +138,11 @@ def load_config(filename, section_name):
 
     return config_obj
 
-####
-
-####
-
 class ThreadedServer(ThreadingMixIn, SimpleXMLRPCServer):
-    pass
+    "Simple threaded XML-RPC server."
 
 def create_server(host, port, obj):
-
-    # Create server
+    "Create an XML-RPC server & register functions."
     server = ThreadedServer((host, port))
     server.register_function(obj.get_parameters, 'get_parameters')
     server.register_function(obj.retrieve_sequences, 'retrieve_sequences')
@@ -150,6 +150,12 @@ def create_server(host, port, obj):
     server.register_function(obj.estimate_undone, 'estimate_undone')
 
     return server
+
+def cache_saver(obj, delay=1):
+    "Threaded function to periodically save results cache to disk."
+    while not done:
+        obj.save_cache_to_disk()
+        time.sleep(delay)
 
 ####
 
