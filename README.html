@@ -343,6 +343,11 @@ python zounds-central config-dev.rc test
 <pre class="literal-block">
 python zounds-worker http://localhost:5678/
 </pre>
+<p>Once zounds-worker finishes, use CTRL-C to kill the server.</p>
+<p>Assuming that all goes well, the file 'test-output.db' will contain 5
+BLAST records corresponding to the results of BLASTing
+'test-data/seq-db.fa' against itself.  These records are
+blastparser.BlastRecord objects; to 'Retrieving results', below.</p>
 </div>
 <div class="section" id="retrieving-results">
 <h1>Retrieving results</h1>
@@ -363,6 +368,13 @@ db = BsdDbShelf(_db)
 
 for key in _db:
    value = db[key]
+</pre>
+<p>Each record is a blastparser.BlastRecord, and you can do something like this
+to get some basic results:</p>
+<pre class="literal-block">
+record = db[seq_name]
+for hit in record:
+   print hit.subject_name, hit.total_expect
 </pre>
 </div>
 <div class="section" id="using-filters">

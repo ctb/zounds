@@ -70,6 +70,13 @@ In another shell, run: ::
 
    python zounds-worker http://localhost:5678/
 
+Once zounds-worker finishes, use CTRL-C to kill the server.
+
+Assuming that all goes well, the file 'test-output.db' will contain 5
+BLAST records corresponding to the results of BLASTing
+'test-data/seq-db.fa' against itself.  These records are
+blastparser.BlastRecord objects; to 'Retrieving results', below.
+
 Retrieving results
 ------------------
 
@@ -91,6 +98,13 @@ up by using the raw bsddb database to retrieve the keys into the shelf: ::
 
    for key in _db:
       value = db[key]
+
+Each record is a blastparser.BlastRecord, and you can do something like this
+to get some basic results: ::
+
+   record = db[seq_name]
+   for hit in record:
+      print hit.subject_name, hit.total_expect
 
 Using filters
 -------------
