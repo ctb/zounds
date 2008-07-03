@@ -19,12 +19,14 @@ blast_program = None
 extra_blast_args = None
 host = None
 port = None
+filter = None
 
 ###
 
 def load_config(filename, section_name):
     global chunksize, fasta_file, db_file, against_db_name, n_chunks
     global dump_frequency, blast_program, extra_blast_args, host, port
+    global filter
 
     fp = open(filename)
     
@@ -41,6 +43,7 @@ def load_config(filename, section_name):
     extra_blast_args = config.get(section_name, 'blast_options')
     host = config.get(section_name, 'host')
     port = config.getint(section_name, 'port')
+    filter = config.get(section_name, 'filter')
 
 ###
 
@@ -92,7 +95,7 @@ def estimate_undone():
     return _undone_current_count
 
 def get_parameters():
-    return (chunksize, n_chunks, dump_frequency)
+    return (chunksize, n_chunks, dump_frequency, filter)
 
 def retrieve_sequences(chunksize):
     global _undone

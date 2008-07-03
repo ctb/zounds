@@ -1,12 +1,13 @@
 [DEFAULT]
 port=5678
 host=
-blast_options=-e 1e-3
+blast_options=-e 1e -b 1 -v 1
 chunksize=50
-n_chunks=10
+n_chunks=25
 dump_frequency=10
-blastdb=/mnt/home/ctb/test2/animal-refseq.protein.faa
+blastdb=/mnt/home/ctb/lustre/db/animal-refseq.protein.faa
 program=blastx
+filter=
 
 [pang-454.x.animal-refseq]
 sequences=/scratch/titus/ctene/data/pang-454.fa

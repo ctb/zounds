@@ -7,7 +7,7 @@ from cPickle import dumps
 
 DEFAULT_SERVER='http://iorich.caltech.edu:5678'
 
-VERBOSE=True
+VERBOSE=False
 
 def do_blast(program, against_db, extra_args, name, seq):
     seqs = ">%s\n%s\n" % (name, seq,)
@@ -19,7 +19,7 @@ def do_blast(program, against_db, extra_args, name, seq):
     return out, err
 
 def parse_blast(out):
-    records = parse_string(out)
+    records = parse_string(out, ignore_errors=True)
     records = list(records)
     return records
 
@@ -55,7 +55,12 @@ if __name__ == '__main__':
 
     s = xmlrpclib.Server(server_url)
 
-    (chunksize, n_chunks, dump_frequency) = s.get_parameters()
+    (chunksize, n_chunks, dump_frequency, filter) = s.get_parameters()
+
+    if filter:
+        module_name, filter_fn = filter.split('.')
+        exec "import %s" % (module_name,)
+        filter = getattr(globals()[module_name], filter_fn)
 
     results = []
     for i in range(n_chunks):
@@ -69,6 +74,10 @@ if __name__ == '__main__':
         program, against_db, extra_args, seqs = x
         for name, record in handle_sequences(program, against_db,
                                              extra_args, seqs):
+
+            if filter:
+                record = filter(record)
+            
             pickle = dumps(record)
             results.append((name, xmlrpclib.Binary(pickle)))
 
