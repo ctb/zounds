@@ -13,7 +13,6 @@ database(s) in question, and the 'blastparser' Python module.  All of
 the sequences and configuration information is supplied by the server
 to the zounds-worker.
 
-
 How does it work?
 -----------------
 
@@ -156,6 +155,16 @@ None of these problems prevent zounds from working and so I just
 ignore 'em.  You can fix them if you like.  Personally I'd prefer to
 keep the worker code as simple as possible, but it should be fairly
 easy to hack performance improvements in if you need or want them.
+
+Author Info
+-----------
+
+zounds was hacked together by C. Titus Brown, <titus@idyll.org>.  It is
+freely available under the BSD license.
+
+Please contact the `biology-in-python
+<http://lists.idyll.org/listinfo/biology-in-python>`__ mailing list with
+any questions or comments about zounds.
 
 --
 
