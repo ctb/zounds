@@ -95,7 +95,7 @@ def main(server_url):
     if filter:
         module_name, filter_fn = filter.split('.')
         exec "import %s" % (module_name,)
-        filter = getattr(globals()[module_name], filter_fn)
+        filter = getattr(locals()[module_name], filter_fn)
 
     results = []
     for i in range(n_chunks):
