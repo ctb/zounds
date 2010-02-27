@@ -70,7 +70,7 @@ def handle_sequences(program, against_db, extra_args, seqs):
         if len(records) == 0:
             print '--\n** sequence: %s\n%s' % (name, out)
             print >>sys.stderr, '--\n** sequence: %s\n%s' % (name, err)
-            record = ()
+            continue
         else:
             assert len(records) == 1
             record = records[0]
