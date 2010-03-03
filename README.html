@@ -305,8 +305,9 @@ database with the configured parameters and parses the results into a
 blastparser.BlastRecord object.  This object is then pickled and
 returned to the server via XML-RPC.  It can also optionally be passed
 through a filter function, following which the filtered value is
-returned.  The 'zounds-central' server saves the returned value as a
-record in a 'BsdDbShelf', with the sequence name as the key.</p>
+returned -- this is useful if you want to send a small amount of data.
+The 'zounds-central' server saves the returned value as a record in a
+'BsdDbShelf', with the sequence name as the key.</p>
 <p>Because XML-RPC works via HTTP, and the clients contact the server,
 the individual cluster machines need to be able to talk to the server
 over the network.  However, the server never contacts the clients so
@@ -314,14 +315,15 @@ the cluster can be hidden behind a firewall and/or NAT.</p>
 </div>
 <div class="section" id="installing">
 <h1>Installing</h1>
-<p>You'll need to install <a class="reference external" href="http://www.python.org">Python</a>, <a class="reference external" href="http://pyparsing.wikispaces.com/">pyparsing</a>, and <a class="reference external" href="http://darcs.idyll.org/~t/projects/blastparser-latest.tar.gz">blastparser</a>, as
-well as BLAST and whatever BLAST databases you need.</p>
+<p>You'll need to install <a class="reference external" href="http://www.python.org">Python</a>, <a class="reference external" href="http://pyparsing.wikispaces.com/">pyparsing</a>, and the blastparser.py and
+parse_blast.py module from <cite>blastkit
+&lt;http://github.com/ctb/blastkit/&gt;__</cite>, well as BLAST and whatever BLAST
+databases you need.</p>
 <p>For the moment, you need to get zounds via 'git', at</p>
 <pre class="literal-block">
-git://iorich.caltech.edu/git/public/zounds
+git&#64;github.com:ctb/zounds.git
 </pre>
-<p>or trust that my latest tarball (posted <a class="reference external" href="http://iorich.caltech.edu/~t/transfer/zounds-latest.tar.gz">here</a>) is in
-fact a tarball of the latest version.</p>
+<p>This can be done with 'git clone <a class="reference external" href="mailto:git&#64;github.com">git&#64;github.com</a>:ctb/zounds.git'.</p>
 </div>
 <div class="section" id="running-zounds-central">
 <h1>Running 'zounds-central'</h1>
@@ -352,13 +354,13 @@ blastparser.BlastRecord objects; to 'Retrieving results', below.</p>
 <div class="section" id="retrieving-results">
 <h1>Retrieving results</h1>
 <p>Use</p>
+<p>Use</p>
 <pre class="literal-block">
-from bsddb import btopen
-from shelve import BsdDbShelf
-
-db = BsdDbShelf(btopen(store_db, 'r'))
+python -i load_db.py &lt;output filename&gt;
 </pre>
-<p>('db' is a dictionary.)</p>
+<p>You'll now have a dictionary 'db' containing the keys (query sequences)
+and values (BlastQuery records).</p>
+<p>--</p>
 <p>Note that iterating over very large BsdDbShelf databases is slow to start,
 because BsdDbShelf retrieves all of the keys at once.  You can speed things
 up by using the raw bsddb database to retrieve the keys into the shelf:</p>
@@ -413,7 +415,6 @@ there to be server-side performance issues.</p>
 This means the BLAST database is reloaded for every BLAST.  This
 could be optimized at the expense of a bit more code complexity
 in 'zounds-worker'.</li>
-<li>The blastparser library is sloooooow.</li>
 <li>The worker submits the BLAST data to the server directly, without
 starting a thread.  This means that if the server or network
 is really busy, the worker may be network-bound.  (This should be
@@ -432,7 +433,17 @@ freely available under the BSD license.</p>
 <p>Please contact the <a class="reference external" href="http://lists.idyll.org/listinfo/biology-in-python">biology-in-python</a> mailing list with
 any questions or comments about zounds.</p>
 <p>--</p>
-<p>CTB: Woods Hole MBL, 7/2008</p>
+<p>TODO:</p>
+<blockquote>
+<ul class="simple">
+<li>fix/work with blastparser from blastkit</li>
+<li>expand to HMMER</li>
+<li>use sqlite shelve instead, for storage results</li>
+<li>fix/work with screed v2</li>
+</ul>
+</blockquote>
+<p>--</p>
+<p>CTB: Woods Hole MBL, 7/2008; MSU 3/2010.</p>
 </div>
 </div>
 </body>

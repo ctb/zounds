@@ -41,7 +41,7 @@ def parse_blast(out):
     """
     Parse the BLAST output into an object.
     """
-    records = blastparser.parse_string(out, ignore_errors=True)
+    records = blastparser.parse_string(out)
     records = list(records)
     return records
 

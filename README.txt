@@ -23,8 +23,9 @@ database with the configured parameters and parses the results into a
 blastparser.BlastRecord object.  This object is then pickled and
 returned to the server via XML-RPC.  It can also optionally be passed
 through a filter function, following which the filtered value is
-returned.  The 'zounds-central' server saves the returned value as a
-record in a 'BsdDbShelf', with the sequence name as the key.
+returned -- this is useful if you want to send a small amount of data.
+The 'zounds-central' server saves the returned value as a record in a
+'BsdDbShelf', with the sequence name as the key.
 
 Because XML-RPC works via HTTP, and the clients contact the server,
 the individual cluster machines need to be able to talk to the server
@@ -35,17 +36,16 @@ Installing
 ----------
 
 You'll need to install `Python <http://www.python.org>`__, `pyparsing
-<http://pyparsing.wikispaces.com/>`__, and `blastparser
-<http://darcs.idyll.org/~t/projects/blastparser-latest.tar.gz>`__, as
-well as BLAST and whatever BLAST databases you need.
+<http://pyparsing.wikispaces.com/>`__, and the blastparser.py and
+parse_blast.py module from `blastkit
+<http://github.com/ctb/blastkit/>__`, well as BLAST and whatever BLAST
+databases you need.
 
 For the moment, you need to get zounds via 'git', at ::
 
-    git://iorich.caltech.edu/git/public/zounds
+    git@github.com:ctb/zounds.git
 
-or trust that my latest tarball (posted `here
-<http://iorich.caltech.edu/~t/transfer/zounds-latest.tar.gz>`__) is in
-fact a tarball of the latest version.
+This can be done with 'git clone git@github.com:ctb/zounds.git'.
 
 Running 'zounds-central'
 ------------------------
@@ -79,14 +79,16 @@ blastparser.BlastRecord objects; to 'Retrieving results', below.
 Retrieving results
 ------------------
 
+Use
+
 Use ::
 
-   from bsddb import btopen
-   from shelve import BsdDbShelf
+   python -i load_db.py <output filename>
 
-   db = BsdDbShelf(btopen(store_db, 'r'))
+You'll now have a dictionary 'db' containing the keys (query sequences)
+and values (BlastQuery records).
 
-('db' is a dictionary.)
+--
 
 Note that iterating over very large BsdDbShelf databases is slow to start,
 because BsdDbShelf retrieves all of the keys at once.  You can speed things
@@ -144,9 +146,7 @@ On the client side there are likely to be a few performance problems:
     could be optimized at the expense of a bit more code complexity
     in 'zounds-worker'.
 
- 2. The blastparser library is sloooooow.
-
- 3. The worker submits the BLAST data to the server directly, without
+ 2. The worker submits the BLAST data to the server directly, without
     starting a thread.  This means that if the server or network
     is really busy, the worker may be network-bound.  (This should be
     particularly easy to fix.)
@@ -168,4 +168,13 @@ any questions or comments about zounds.
 
 --
 
-CTB: Woods Hole MBL, 7/2008
+TODO:
+ 
+ - fix/work with blastparser from blastkit
+ - expand to HMMER
+ - use sqlite shelve instead, for storage results
+ - fix/work with screed v2
+
+--
+
+CTB: Woods Hole MBL, 7/2008; MSU 3/2010.
