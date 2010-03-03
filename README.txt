@@ -174,6 +174,7 @@ TODO:
  - expand to HMMER
  - use sqlite shelve instead, for storage results
  - fix/work with screed v2
+ - text dump of records
 
 --
 

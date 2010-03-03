@@ -90,7 +90,7 @@ class ZoundsCentral(object):
 
     def get_parameters(self):
         "XML-RPC function: get basic BLAST parameters"
-        return (self.chunksize, self.n_chunks,
+        return ('blast', self.chunksize, self.n_chunks,
                 self.dump_frequency, self.filter)
 
     def retrieve_sequences(self, chunksize):

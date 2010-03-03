@@ -14,7 +14,7 @@ import socket
 
 import blastparser
 
-DEFAULT_SERVER='http://iorich.caltech.edu:5679'
+DEFAULT_SERVER='http://lyorn.idyll.org:5679'
 VERBOSE=False
 DEBUG=False
 
@@ -45,7 +45,7 @@ def parse_blast(out):
     records = list(records)
     return records
 
-def handle_sequences(program, against_db, extra_args, seqs):
+def blast_sequences(program, against_db, extra_args, seqs):
     """
     Run through the given sequences, doing BLASTs and returning
     results via yield.
@@ -77,26 +77,45 @@ def handle_sequences(program, against_db, extra_args, seqs):
 
         yield name, record
 
+def do_cmd(cmdtype, params):
+    if cmdtype == 'blast':
+        program, against_db, extra_args, seqs = params
+        for name, record in blast_sequences(program, against_db,
+                                             extra_args, seqs):
+            yield name, record
+    elif cmdtype == 'hmmer3':
+        assert 0, "unsupported"
+    else:
+        assert 0, "unsupported: %s" % cmdtype
+
 def main(server_url):
     """
     Contact the given zounds-central server via XML-RPC; get parameters;
     import filter function, if any; and loop until done, returning
     intermediate results as specified.
     """
+    total_processed = 0
+    filter_fn = None
     
     s = xmlrpclib.Server(server_url)
 
     try:
-        (chunksize, n_chunks, dump_frequency, filter) = s.get_parameters()
+        (cmdtype, chunksize, n_chunks, dump_frequency, filter_name) = \
+                  s.get_parameters()
     except socket.error:
         print >>sys.stderr, "cannot connect to server; exiting"
         sys.exit(-1)
 
-    if filter:
-        module_name, filter_fn = filter.split('.')
+    if filter_name:
+        module_name, fn_name = filter_name.split('.')
         exec "import %s" % (module_name,)
-        filter = getattr(locals()[module_name], filter_fn)
+        filter_fn = getattr(locals()[module_name], fn_name)
 
+
+    #
+    # main loop; when we exit from here, we're done.
+    #
+    
     results = []
     for i in range(n_chunks):
         if VERBOSE:
@@ -107,30 +126,31 @@ def main(server_url):
             if VERBOSE: print 'no more sequences; exiting'
             break                       # done.
 
-        #
-        # unpack arguments, do blasts.
-        #
-        
-        program, against_db, extra_args, seqs = x
-        for name, record in handle_sequences(program, against_db,
-                                             extra_args, seqs):
+        for name, record in do_cmd(cmdtype, x):
+            total_processed += 1
+            if filter_fn:
+                record = filter_fn(record)
 
-            if filter:
-                record = filter(record)
-            
             pickle = dumps(record)
             results.append((name, xmlrpclib.Binary(pickle)))
 
+            # is it time to return results?
             if len(results) >= dump_frequency:
                 if VERBOSE:
                     print 'dumping %d results' % (len(results),)
                 s.deposit_results(results)
                 results = []
 
+    # flush remaining results
     if results:
         if VERBOSE:
             print 'dumping %d results' % (len(results),)
         s.deposit_results(results)
+
+    # done!
+    return total_processed
+
+##
 
 if __name__ == '__main__':
     parser = OptionParser()
@@ -153,4 +173,5 @@ if __name__ == '__main__':
         server_url = args[0]
         print 'Using alternate zounds server:', server_url
 
-    main(server_url)
+    total_processed = main(server_url)
+    print 'exiting; total records processed:', total_processed
