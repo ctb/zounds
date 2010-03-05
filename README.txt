@@ -43,7 +43,7 @@ For the moment, you need to get zounds via 'git', at ::
 
     git@github.com:ctb/zounds.git
 
-This can be done with 'git clone git@github.com:ctb/zounds.git'.
+This can be done with 'git clone http://github.com/ctb/zounds.git'
 
 Running 'zounds-central'
 ========================
