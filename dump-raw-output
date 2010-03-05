@@ -10,3 +10,6 @@ def load(filename):
 if __name__ == '__main__':
     import sys
     db = load(sys.argv[1])
+
+    for k, (out, err) in db.iteritems():
+        sys.stdout.write(out)

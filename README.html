@@ -287,38 +287,36 @@ ul.auto-toc {
 <div class="document" id="zounds">
 <h1 class="title">zounds</h1>
 
-<p>'zounds' is a client-server setup for running many parallel BLASTs on
-clusters of computers.  It uses XML-RPC to coordinate between the
-server &amp; clients.</p>
+<p>'zounds' is a client-server setup for running many parallel commands
+(typically BLAST) on clusters of computers.  It uses XML-RPC to
+coordinate between the server &amp; clients.</p>
 <p>The 'zounds-central' process runs on the server and serves both
 configuration information and sequences to clients upon request.</p>
-<p>The 'zounds-worker' processes must have access to BLAST, the BLAST
-database(s) in question, and the 'blastparser' Python module.  All of
-the sequences and configuration information is supplied by the server
-to the zounds-worker.</p>
+<p>The 'zounds-worker' processes must have access to the command (e.g.
+'blastall' for BLAST, the search database(s) in question, and any code
+you want to use for post-processing (e.g. the 'blastparser' Python
+module).  All of the sequences and configuration information is
+supplied by the server to the zounds-worker; all of the actual source
+code needs to be on the client machine where zounds-worker runs.</p>
 <div class="section" id="how-does-it-work">
 <h1>How does it work?</h1>
 <p>When you start 'zounds-worker', it contacts the 'zounds-central'
-server and requests config info and a set of sequences.  It then
-BLASTs these sequences individually against the specified BLAST
-database with the configured parameters and parses the results into a
-blastparser.BlastRecord object.  This object is then pickled and
-returned to the server via XML-RPC.  It can also optionally be passed
-through a filter function, following which the filtered value is
-returned -- this is useful if you want to send a small amount of data.
-The 'zounds-central' server saves the returned value as a record in a
+server and requests config info and a set of sequences.  It then runs
+whatever command you've specified (e.g. BLAST) on the sequences
+individually, with the configured parameters.  The results are then
+optionally passed through some filter (e.g. parsed by blastparser) and
+then pickled and returned to the server via XML-RPC.  The
+'zounds-central' server saves the returned value as a record in a
 'BsdDbShelf', with the sequence name as the key.</p>
 <p>Because XML-RPC works via HTTP, and the clients contact the server,
 the individual cluster machines need to be able to talk to the server
-over the network.  However, the server never contacts the clients so
-the cluster can be hidden behind a firewall and/or NAT.</p>
+directly over the network.  However, the server never contacts the
+clients so the cluster can be hidden behind a firewall, proxy, and/or
+NAT.</p>
 </div>
 <div class="section" id="installing">
 <h1>Installing</h1>
-<p>You'll need to install <a class="reference external" href="http://www.python.org">Python</a>, <a class="reference external" href="http://pyparsing.wikispaces.com/">pyparsing</a>, and the blastparser.py and
-parse_blast.py module from <cite>blastkit
-&lt;http://github.com/ctb/blastkit/&gt;__</cite>, well as BLAST and whatever BLAST
-databases you need.</p>
+<p>You'll need to install <a class="reference external" href="http://www.python.org">Python</a>.</p>
 <p>For the moment, you need to get zounds via 'git', at</p>
 <pre class="literal-block">
 git&#64;github.com:ctb/zounds.git
@@ -331,9 +329,12 @@ git&#64;github.com:ctb/zounds.git
 <pre class="literal-block">
 python zounds-central &lt;config file&gt; &lt;config section&gt;
 </pre>
-<p>See 'config.rc' for examples.  The only trickiness is that the
-'blastdb' must be a path accessible to the 'zounds-worker' processes,
-while the 'sequences' and 'store_db' must be paths on the server.</p>
+<p>See 'config.rc' for examples.</p>
+<p>For BLAST, the only trickiness is that the 'blastdb' must be a path
+accessible to the 'zounds-worker' processes, while the 'sequences' and
+'store_db' must be paths on the server.  This is because the sequences
+are sent from the server to the client, and but the actual comparison
+is done on the client.</p>
 </div>
 <div class="section" id="an-example">
 <h1>An Example</h1>
@@ -346,10 +347,12 @@ python zounds-central config-dev.rc test
 python zounds-worker http://localhost:5678/
 </pre>
 <p>Once zounds-worker finishes, use CTRL-C to kill the server.</p>
-<p>Assuming that all goes well, the file 'test-output.db' will contain 5
-BLAST records corresponding to the results of BLASTing
-'test-data/seq-db.fa' against itself.  These records are
-blastparser.BlastRecord objects; to 'Retrieving results', below.</p>
+<p>Now run:</p>
+<pre class="literal-block">
+python dump-raw-output test-output.db
+</pre>
+<p>You should get individual BLAST records for each of your query sequences,
+almost as if you'd simply run 'blastall' locally.</p>
 </div>
 <div class="section" id="retrieving-results">
 <h1>Retrieving results</h1>
@@ -359,11 +362,17 @@ blastparser.BlastRecord objects; to 'Retrieving results', below.</p>
 python -i load_db.py &lt;output filename&gt;
 </pre>
 <p>You'll now have a dictionary 'db' containing the keys (query sequences)
-and values (BlastQuery records).</p>
+and values.</p>
+<p>If you haven't specified a filter, then the values will be tuples:</p>
+<pre class="literal-block">
+(stdout, stderr)
+</pre>
+<p>from the BLAST output.</p>
 <p>--</p>
-<p>Note that iterating over very large BsdDbShelf databases is slow to start,
-because BsdDbShelf retrieves all of the keys at once.  You can speed things
-up by using the raw bsddb database to retrieve the keys into the shelf:</p>
+<p><strong>Stupid note:</strong> that iterating over very large BsdDbShelf databases
+is slow to start, because BsdDbShelf retrieves all of the keys at
+once.  You can speed things up by using the raw bsddb database to
+retrieve the keys into the shelf:</p>
 <pre class="literal-block">
 _db = btopen(store_db, 'r')
 db = BsdDbShelf(_db)
@@ -371,35 +380,43 @@ db = BsdDbShelf(_db)
 for key in _db:
    value = db[key]
 </pre>
-<p>Each record is a blastparser.BlastRecord, and you can do something like this
-to get some basic results:</p>
+</div>
+<div class="section" id="using-filters">
+<h1>Using filters</h1>
+<p>Filters can be used both for parsing output and actual filtering of
+results.</p>
+<p>A 'filter' is specified in a config file as 'filter='; for example, in
+config-dev.rc, section [test_filter],</p>
+<pre class="literal-block">
+filter=filters.parse_blast
+</pre>
+<p>wmakes each zounds-worker program import the module 'filters' and run
+the function 'parse_blast' on the stdout and stderr of the subprocess
+command; the result is then pickled and passed back to the server.</p>
+<p>If the filter returns an empty record (None, or (), &quot;&quot;, or whatever)
+then that too is pickled and returned.</p>
+<div class="section" id="parsing-the-blast-results-with-filters-parse-blast">
+<h2>Parsing the BLAST results with filters.parse_blast</h2>
+<p>For this filter, the blastparser and parse_blast modules must be installed.</p>
+<blockquote>
+filter=filters.parse_blast</blockquote>
+<p>After parsing, each record is a blastparser.BlastRecord, and you can
+do something like this to get some basic results:</p>
 <pre class="literal-block">
 record = db[seq_name]
 for hit in record:
    print hit.subject_name, hit.total_expect
 </pre>
 </div>
-<div class="section" id="using-filters">
-<h1>Using filters</h1>
+<div class="section" id="retrieving-only-a-subset-of-blast-results-with-filters-top-matches-only">
+<h2>Retrieving only a subset of BLAST results with filters.top_matches_only</h2>
 <p>Filters are useful for situations where you only need a small subset
-of the information from BLAST: rather than pickling and encoding a
-full BLAST record, filters can reduce the full blastparser.BlastRecord
-to something much smaller.</p>
-<p>The filter function can do anything you want, as long as it takes in a
-BlastRecord and returns something picklable.  For now, it must be
-specified in the config file as <cite>module.function</cite>; <cite>module</cite> will be
-imported and then <cite>function</cite> will be retrieved from that namespace.
-The filter is then run on each record, like so:</p>
-<blockquote>
-<dl class="docutils">
-<dt>if filter:</dt>
-<dd>record = filter(record)</dd>
-</dl>
-</blockquote>
-<p>Note that this all occurs <em>on the worker</em> so you will need to make sure
-that your filter module(s) are available to 'zounds-worker'.</p>
+of the information: e.g. rather than pickling and encoding a full
+BLAST record, filters can reduce the full blastparser.BlastRecord to
+something much smaller.</p>
 <p>There's an example filter function in 'filters.py', function
 'top_matches_only'.</p>
+</div>
 </div>
 <div class="section" id="how-well-does-it-scale">
 <h1>How well does it scale?</h1>
@@ -440,7 +457,6 @@ any questions or comments about zounds.</p>
 <li>expand to HMMER</li>
 <li>use sqlite shelve instead, for storage results</li>
 <li>fix/work with screed v2</li>
-<li>text dump of records</li>
 </ul>
 </blockquote>
 <p>--</p>

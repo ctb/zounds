@@ -12,3 +12,12 @@ sequences=test-data/seq-db.fa
 store_db=test-output.db
 blastdb=test-data/seq-db.fa
 program=blastn
+
+[test_filter]
+port=5679
+host=
+sequences=test-data/seq-db.fa
+store_db=test-output.db
+blastdb=test-data/seq-db.fa
+program=blastn
+filter=filters.parse_blast

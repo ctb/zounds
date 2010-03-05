@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 """
 Worker program for zounds: run this on remote systems to retrieve
-sequences to BLAST from the zounds-central server, to which results
+sequences to process from the zounds-central server, to which results
 will then be returned.
 """
 
@@ -11,8 +11,6 @@ from subprocess import Popen, PIPE
 from cPickle import dumps
 from optparse import OptionParser
 import socket
-
-import blastparser
 
 DEFAULT_SERVER='http://lyorn.idyll.org:5679'
 VERBOSE=False
@@ -35,15 +33,10 @@ def do_blast(program, against_db, extra_args, name, seq):
     p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE)
     (out, err) = p.communicate(seqs)
 
-    return out, err
+    assert p.returncode == 0, "return code err: %s, %s, %s" % \
+           (p.returncode, out, err)
 
-def parse_blast(out):
-    """
-    Parse the BLAST output into an object.
-    """
-    records = blastparser.parse_string(out)
-    records = list(records)
-    return records
+    return out, err
 
 def blast_sequences(program, against_db, extra_args, seqs):
     """
@@ -64,18 +57,7 @@ def blast_sequences(program, against_db, extra_args, seqs):
         if VERBOSE:
             print '   ... finished.'
 
-        records = parse_blast(out)
-
-        # error?
-        if len(records) == 0:
-            print '--\n** sequence: %s\n%s' % (name, out)
-            print >>sys.stderr, '--\n** sequence: %s\n%s' % (name, err)
-            continue
-        else:
-            assert len(records) == 1
-            record = records[0]
-
-        yield name, record
+        yield name, (out, err)
 
 def do_cmd(cmdtype, params):
     if cmdtype == 'blast':
@@ -159,7 +141,7 @@ if __name__ == '__main__':
                       help="Print verbose status messages")
     parser.add_option("-d", "--debug", dest="debug", default=False,
                       action="store_true",
-                      help="Print BLAST output")
+                      help="Print debuggin output")
     
     (options, args) = parser.parse_args()
 

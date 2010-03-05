@@ -49,7 +49,7 @@ class ZoundsCentral(object):
         self.filter = config_obj.get(section_name, 'filter')
 
     def _calc_undone(self):
-        "Calculate how many sequences do NOT have BLAST records attached."
+        "Calculate how many sequences do NOT have records attached."
         db_keys = set(self.db.keys())
         fasta_keys = set([k for k in self.sequences ])
         self._undone = fasta_keys.difference(db_keys)
@@ -59,7 +59,7 @@ class ZoundsCentral(object):
 
     def save_cache_to_disk(self):
         """
-        Flush the in-memory cache of BLAST results to disk.
+        Flush the in-memory cache of results to disk.
         
         Since bsddb does not seem to be threadsafe for writes, this
         should never be called from more than one thread.
@@ -85,16 +85,16 @@ class ZoundsCentral(object):
     ### XML-RPC accessible functions
 
     def estimate_undone(self):
-        "XML-RPC function: return how many BLASTs remain."
+        "XML-RPC function: return how many sequences remain."
         return self._undone_current_count
 
     def get_parameters(self):
-        "XML-RPC function: get basic BLAST parameters"
+        "XML-RPC function: get basic cmd parameters"
         return ('blast', self.chunksize, self.n_chunks,
                 self.dump_frequency, self.filter)
 
     def retrieve_sequences(self, chunksize):
-        "XML-RPC function: retrieve sequences to BLAST."
+        "XML-RPC function: retrieve sequences for work."
         _undone = self._undone
         if not _undone:
             return ()
@@ -171,7 +171,7 @@ def cache_saver(obj, delay=1):
 def main(config_obj, section_name, host, port):
     global done
 
-    # create the object to manage the BLAST stuff
+    # create the object to manage the sequences stuff
     central = ZoundsCentral(config_obj, section_name)
 
     # start the thread to save objects to disk
