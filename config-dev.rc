@@ -1,4 +1,5 @@
 [DEFAULT]
+cmdtype=blast
 blast_options=-e 1e-3
 chunksize=2
 dump_frequency=1

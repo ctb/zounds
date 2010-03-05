@@ -38,14 +38,24 @@ class ZoundsCentral(object):
 
     def _initialize(self, config_obj, section_name):
         "Load parameters from the config obj and attach them to 'self'."
+
+        self.cmdtype = config_obj.get(section_name, 'cmdtype')
         self.chunksize = config_obj.getint(section_name, 'chunksize')
         self.n_chunks = config_obj.getint(section_name, 'n_chunks')
         self.dump_frequency = config_obj.getint(section_name, 'dump_frequency')
         self.fasta_file = config_obj.get(section_name, 'sequences')
         self.db_file = config_obj.get(section_name, 'store_db')
-        self.against_db_name = config_obj.get(section_name, 'blastdb')
-        self.blast_program = config_obj.get(section_name, 'program')
-        self.extra_blast_args = config_obj.get(section_name, 'blast_options')
+
+        if self.cmdtype == 'blast':
+            self.against_db_name = config_obj.get(section_name, 'blastdb')
+            self.blast_program = config_obj.get(section_name, 'program')
+            self.extra_blast_args = config_obj.get(section_name,
+                                                   'blast_options')
+        elif self.cmdtype == 'hmmer3':
+            self.against_db_name = config_obj.get(section_name, 'hmmscandb')
+            self.extra_hmmscan_args = config_obj.get(section_name,
+                                                    'hmmscan_options')
+        
         self.filter = config_obj.get(section_name, 'filter')
 
     def _calc_undone(self):
@@ -90,8 +100,10 @@ class ZoundsCentral(object):
 
     def get_parameters(self):
         "XML-RPC function: get basic cmd parameters"
-        return ('blast', self.chunksize, self.n_chunks,
+        
+        return (self.cmdtype, self.chunksize, self.n_chunks,
                 self.dump_frequency, self.filter)
+
 
     def retrieve_sequences(self, chunksize):
         "XML-RPC function: retrieve sequences for work."
@@ -119,10 +131,14 @@ class ZoundsCentral(object):
 
             print '...%d undone' % (len(_undone))
 
-            return (self.blast_program,
-                    self.against_db_name,
-                    self.extra_blast_args,
-                    seqs)
+            cmdtype = self.cmdtype
+            if cmdtype == 'blast':
+                return (self.blast_program,
+                        self.against_db_name,
+                        self.extra_blast_args,
+                        seqs)
+            elif cmdtype == 'hmmer3':
+                return (self.against_db_name, self.extra_hmmscan_args, seqs)
         finally:
             self.retrieve_lock.release()
 

@@ -1,0 +1,14 @@
+[DEFAULT]
+cmdtype=hmmer3
+hmmscan_options=-E 1e-3
+chunksize=2
+dump_frequency=1
+n_chunks=5
+filter=
+
+[test]
+port=5679
+host=
+sequences=test-data/seq-db.fa
+store_db=test-hmmer3-output.db
+hmmscandb=test-data/pfam-ls-subset
