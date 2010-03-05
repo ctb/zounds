@@ -187,6 +187,14 @@ Author Info
 zounds was hacked together by C. Titus Brown, <titus@idyll.org>.  It is
 freely available under the BSD license.
 
+Acknowledgements
+================
+
+Tracy Teal and Qingpeng Zhang alpha- and beta-tested zounds.
+
+Questions?
+==========
+
 Please contact the `biology-in-python
 <http://lists.idyll.org/listinfo/biology-in-python>`__ mailing list with
 any questions or comments about zounds.
@@ -198,6 +206,7 @@ TODO:
  - expand to HMMER
  - use sqlite shelve instead, for storage results
  - fix/work with screed v2
+ - automatically set number of comparisons/seqs in db for BLAST and HMMER
 
 --
 
