@@ -195,7 +195,6 @@ any questions or comments about zounds.
 
 TODO:
  
- - fix/work with blastparser from blastkit
  - expand to HMMER
  - use sqlite shelve instead, for storage results
  - fix/work with screed v2
