@@ -1,0 +1,22 @@
+[DEFAULT]
+cmdtype=hmmer3
+hmmscan_options=-E 1
+chunksize=50
+dump_frequency=5
+n_chunks=10000
+filter=
+
+[test]
+port=5679
+host=
+sequences=test-data/prot-seqs.fa
+store_db=illumina-hmmer3-output.db
+hmmscandb=/home/u/t/software/pfam/Pfam_ls
+
+[test_filter]
+port=5679
+host=
+sequences=test-data/prot-seqs.fa
+store_db=illumina-hmmer3-parsed-output.db
+hmmscandb=/home/u/t/software/pfam/Pfam_ls
+filter=filters_hmmscan.parse_hmmscan
