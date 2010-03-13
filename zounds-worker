@@ -11,10 +11,14 @@ from subprocess import Popen, PIPE
 from cPickle import dumps
 from optparse import OptionParser
 import socket
+import signal
 
 DEFAULT_SERVER='http://lyorn.idyll.org:5679'
 VERBOSE=False
 DEBUG=False
+
+class TimeoutSignal(Exception):
+    pass
 
 ###
 
@@ -112,12 +116,22 @@ def do_cmd(cmdtype, params):
     else:
         assert 0, "unsupported: %s" % cmdtype
 
-def main(server_url):
+def timeout_handler(signum, frame):
+    raise TimeoutSignal
+
+def main(server_url, timeout=None):
     """
     Contact the given zounds-central server via XML-RPC; get parameters;
     import filter function, if any; and loop until done, returning
-    intermediate results as specified.
+    intermediate results as specified.  'timeout', if given, is in
+    minutes.
     """
+
+    if timeout:
+        # Set the signal handler and the timeout
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(timeout*60)
+
     total_processed = 0
     filter_fn = None
     
@@ -142,28 +156,33 @@ def main(server_url):
     
     results = []
     for i in range(n_chunks):
-        if VERBOSE:
-            print 'asking for %d sequences' % (chunksize,)
-            
-        x = s.retrieve_sequences(chunksize)
-        if not x:
-            if VERBOSE: print 'no more sequences; exiting'
-            break                       # done.
+        try:
+            if VERBOSE:
+                print 'asking for %d sequences' % (chunksize,)
 
-        for name, record in do_cmd(cmdtype, x):
-            total_processed += 1
-            if filter_fn:
-                record = filter_fn(record)
+            x = s.retrieve_sequences(chunksize)
+            if not x:
+                if VERBOSE: print 'no more sequences; exiting'
+                break                       # done.
 
-            pickle = dumps(record)
-            results.append((name, xmlrpclib.Binary(pickle)))
+            for name, record in do_cmd(cmdtype, x):
+                total_processed += 1
+                if filter_fn:
+                    record = filter_fn(record)
 
-            # is it time to return results?
-            if len(results) >= dump_frequency:
-                if VERBOSE:
-                    print 'dumping %d results' % (len(results),)
-                s.deposit_results(results)
-                results = []
+                pickle = dumps(record)
+                results.append((name, xmlrpclib.Binary(pickle)))
+
+                # is it time to return results?
+                if len(results) >= dump_frequency:
+                    if VERBOSE:
+                        print 'dumping %d results' % (len(results),)
+                    s.deposit_results(results)
+                    results = []
+        except TimeoutSignal:
+            print 'TIMEOUT alarm received; exiting.'
+            signal.alarm(0)             # disable further timeouts
+            break
 
     # flush remaining results
     if results:
@@ -184,6 +203,9 @@ if __name__ == '__main__':
     parser.add_option("-d", "--debug", dest="debug", default=False,
                       action="store_true",
                       help="Print debuggin output")
+    parser.add_option("-t", "--timeout", dest="timeout", default=None,
+                      action="store", type="int",
+                      help="timeout, in minutes")
     
     (options, args) = parser.parse_args()
 
@@ -197,5 +219,5 @@ if __name__ == '__main__':
         server_url = args[0]
         print 'Using alternate zounds server:', server_url
 
-    total_processed = main(server_url)
+    total_processed = main(server_url, timeout=options.timeout)
     print 'exiting; total records processed:', total_processed
