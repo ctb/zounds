@@ -195,14 +195,16 @@ def main(config_obj, section_name, host, port):
     saver_thread.start()
 
     # start the XML-RPC server
-    server = create_server(host, port, central)
     try:
+        server = create_server(host, port, central)
         try:
             print 'serving %s on port %s...' % (section_name, port)
             server.serve_forever()
         except KeyboardInterrupt:
-            done = True
+            pass
     finally:
+        done = True
+        
         print 'waiting for saver thread to finish...'
         saver_thread.join()
         central.save_cache_to_disk()
