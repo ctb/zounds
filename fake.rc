@@ -1,0 +1,12 @@
+[DEFAULT]
+cmdtype=fake
+chunksize=2
+dump_frequency=1
+n_chunks=5
+filter=
+
+[test]
+port=5679
+host=
+sequences=test-data/seq-db.fa
+store_db=test-fake.db

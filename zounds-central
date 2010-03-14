@@ -34,7 +34,8 @@ class ZoundsCentral(object):
 
         print 'calculating undone seqs...',
         self._calc_undone()
-        print '%d undone' % (len(self._undone),)
+        done = self._total_count - len(self._undone)
+        print '%d done / %d total' % (done, self._total_count)
 
     def _initialize(self, config_obj, section_name):
         "Load parameters from the config obj and attach them to 'self'."
@@ -55,6 +56,8 @@ class ZoundsCentral(object):
             self.against_db_name = config_obj.get(section_name, 'hmmscandb')
             self.extra_hmmscan_args = config_obj.get(section_name,
                                                     'hmmscan_options')
+        else:
+            assert self.cmdtype == 'fake'
         
         self.filter = config_obj.get(section_name, 'filter')
 
@@ -62,6 +65,7 @@ class ZoundsCentral(object):
         "Calculate how many sequences do NOT have records attached."
         db_keys = set(self.db.keys())
         fasta_keys = set([k for k in self.sequences ])
+        self._total_count = len(fasta_keys)
         self._undone = fasta_keys.difference(db_keys)
 
         self._undone_initial_count = len(self._undone)
@@ -129,7 +133,13 @@ class ZoundsCentral(object):
             seqs = [ (k, str(self.sequences[k])) for k in z ]
             _undone.difference_update(z)
 
-            print '...%d undone' % (len(_undone))
+            done = self._total_count - len(self._undone)
+            percent = float(done) / float(self._total_count)
+            percent = int(percent * 100)
+
+            print '...%d done of %d (%d%%)' % (done,
+                                               self._total_count,
+                                               percent)
 
             cmdtype = self.cmdtype
             if cmdtype == 'blast':
@@ -139,6 +149,9 @@ class ZoundsCentral(object):
                         seqs)
             elif cmdtype == 'hmmer3':
                 return (self.against_db_name, self.extra_hmmscan_args, seqs)
+            else:
+                assert cmdtype == 'fake'
+                return (seqs,)
         finally:
             self.retrieve_lock.release()
 
@@ -147,7 +160,7 @@ class ZoundsCentral(object):
         for (key, binary_obj) in results:
             self._dbcache[key] = binary_obj.data
 
-        print 'deposited %d' % (len(results),)
+        print 'saved %d results from cache to db' % (len(results),)
 
         return 0
 

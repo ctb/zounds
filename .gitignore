@@ -2,3 +2,4 @@
 *.pyc
 test-output.db
 test-hmmer3-output.db
+test-fake.db
