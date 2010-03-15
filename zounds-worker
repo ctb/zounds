@@ -12,6 +12,7 @@ from cPickle import dumps
 from optparse import OptionParser
 import socket
 import signal
+import time
 
 DEFAULT_SERVER='http://localhost:5679'
 VERBOSE=False
@@ -123,6 +124,8 @@ def do_cmd(cmdtype, params):
         (seqs,) = params
         for name, seq in seqs:
             yield name, "XXX"
+
+        time.sleep(1)
     else:
         assert 0, "unsupported: %s" % cmdtype
 
@@ -143,8 +146,12 @@ def main(server_url, timeout=None):
         signal.alarm(timeout*60)
 
     total_processed = 0
+    start_time = time.time()
     filter_fn = None
-    
+
+    print 'client worker %s: starting' % (socket.gethostname(),)
+    print 'contacting server:', server_url
+
     s = xmlrpclib.Server(server_url)
 
     try:
@@ -153,6 +160,9 @@ def main(server_url, timeout=None):
     except socket.error:
         print >>sys.stderr, "cannot connect to server; exiting"
         sys.exit(-1)
+
+    print 'success! starting work.'
+    print '--'
 
     if filter_name:
         module_name, fn_name = filter_name.split('.')
@@ -168,7 +178,7 @@ def main(server_url, timeout=None):
     for i in range(n_chunks):
         try:
             if VERBOSE:
-                print 'asking for %d sequences' % (chunksize,)
+                print 'asking for %d sequences from server' % (chunksize,)
 
             x = s.retrieve_sequences(chunksize)
             if not x:
@@ -186,7 +196,7 @@ def main(server_url, timeout=None):
                 # is it time to return results?
                 if len(results) >= dump_frequency:
                     if VERBOSE:
-                        print 'dumping %d results' % (len(results),)
+                        print 'dumping %d results to server' % (len(results),)
                     s.deposit_results(results)
                     results = []
         except TimeoutSignal:
@@ -197,11 +207,13 @@ def main(server_url, timeout=None):
     # flush remaining results
     if results:
         if VERBOSE:
-            print 'dumping %d results' % (len(results),)
+            print 'dumping %d results to server' % (len(results),)
         s.deposit_results(results)
 
     # done!
-    return total_processed
+    stop_time = time.time()
+    
+    return total_processed, stop_time - start_time
 
 ##
 
@@ -212,7 +224,7 @@ if __name__ == '__main__':
                       help="Print verbose status messages")
     parser.add_option("-d", "--debug", dest="debug", default=False,
                       action="store_true",
-                      help="Print debuggin output")
+                      help="Print debugging output")
     parser.add_option("-t", "--timeout", dest="timeout", default=None,
                       action="store", type="int",
                       help="timeout, in minutes")
@@ -229,5 +241,9 @@ if __name__ == '__main__':
         server_url = args[0]
         print 'Using alternate zounds server:', server_url
 
-    total_processed = main(server_url, timeout=options.timeout)
-    print 'exiting; total records processed:', total_processed
+    total_processed, total_time = main(server_url, timeout=options.timeout)
+    print 'exiting; total records processed:', total_processed,
+    print 'in', total_time
+    
+    print 'avg: %.2f records per second' % (float(total_processed) /
+                                            float(total_time))

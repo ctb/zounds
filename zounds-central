@@ -3,15 +3,18 @@ import sys
 import threading
 from bsddb import btopen
 from pygr.seqdb import BlastDB
-from SimpleXMLRPCServer import SimpleXMLRPCServer
+from SimpleXMLRPCServer import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 from SocketServer import ThreadingMixIn
 from cPickle import loads
 import time
 from ConfigParser import SafeConfigParser
+from optparse import OptionParser
 
 host = None
 port = None
 done = False
+
+VERBOSE=False
 
 class ZoundsCentral(object):
     def __init__(self, config_obj, section_name):
@@ -128,7 +131,8 @@ class ZoundsCentral(object):
                 except StopIteration:
                     break
 
-            print 'returning %d sequences' % (len(z),)
+            if VERBOSE:
+                print 'returning %d sequences' % (len(z),)
 
             seqs = [ (k, str(self.sequences[k])) for k in z ]
             _undone.difference_update(z)
@@ -137,8 +141,7 @@ class ZoundsCentral(object):
             percent = float(done) / float(self._total_count)
             percent = int(percent * 100)
 
-            print '...%d done of %d (%d%%)' % (done,
-                                               self._total_count,
+            print '...%d done of %d (%d%%)' % (done, self._total_count,
                                                percent)
 
             cmdtype = self.cmdtype
@@ -160,7 +163,8 @@ class ZoundsCentral(object):
         for (key, binary_obj) in results:
             self._dbcache[key] = binary_obj.data
 
-        print 'saved %d results from cache to db' % (len(results),)
+        if VERBOSE:
+            print 'saved %d results to cache' % (len(results),)
 
         return 0
 
@@ -179,9 +183,15 @@ def load_config(filename, section_name):
 class ThreadedServer(ThreadingMixIn, SimpleXMLRPCServer):
     "Simple threaded XML-RPC server."
 
+class QuietRequestHandler(SimpleXMLRPCRequestHandler):
+    def log_message(self, *args, **kwargs):
+        # ignore logging info unless verbose
+        if VERBOSE:
+            SimpleXMLRPCRequestHandler.log_message(self, *args, **kwargs)
+
 def create_server(host, port, obj):
     "Create an XML-RPC server & register functions."
-    server = ThreadedServer((host, port))
+    server = ThreadedServer((host, port), QuietRequestHandler)
     server.register_function(obj.get_parameters, 'get_parameters')
     server.register_function(obj.retrieve_sequences, 'retrieve_sequences')
     server.register_function(obj.deposit_results, 'deposit_results')
@@ -224,7 +234,19 @@ def main(config_obj, section_name, host, port):
         central.db.close()
 
 if __name__ == '__main__':
-    config_file, section_name = sys.argv[1], sys.argv[2]
+    parser = OptionParser()
+    parser.add_option("-v", "--verbose", dest="verbose", default=False,
+                      action="store_true",
+                      help="Print verbose status messages")
+    (options, args) = parser.parse_args()
+
+    if len(args) != 2:
+        print 'ERROR; need exactly two arguments, config file and section name'
+        sys.exit(-1)
+
+    VERBOSE=options.verbose
+
+    config_file, section_name = args
     config_obj = load_config(config_file, section_name)
 
     host = config_obj.get(section_name, 'host')
