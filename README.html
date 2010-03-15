@@ -3,13 +3,15 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.5: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.4: http://docutils.sourceforge.net/" />
 <title>zounds</title>
 <style type="text/css">
 
 /*
-:Author: David Goodger (goodger@python.org)
-:Id: $Id: html4css1.css 5196 2007-06-03 20:25:28Z wiemann $
+:Author: David Goodger
+:Contact: goodger@users.sourceforge.net
+:Date: $Date: 2005-12-18 01:56:14 +0100 (Sun, 18 Dec 2005) $
+:Revision: $Revision: 4224 $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
@@ -115,7 +117,7 @@ div.line-block div.line-block {
   margin-left: 1.5em }
 
 div.sidebar {
-  margin: 0 0 0.5em 1em ;
+  margin-left: 1em ;
   border: medium outset ;
   padding: 1em ;
   background-color: #ffffee ;
@@ -221,7 +223,8 @@ pre.address {
 
 pre.literal-block, pre.doctest-block {
   margin-left: 2em ;
-  margin-right: 2em }
+  margin-right: 2em ;
+  background-color: #eeeeee }
 
 span.classifier {
   font-family: sans-serif ;
@@ -278,6 +281,9 @@ h1 tt.docutils, h2 tt.docutils, h3 tt.docutils,
 h4 tt.docutils, h5 tt.docutils, h6 tt.docutils {
   font-size: 100% }
 
+tt.docutils {
+  background-color: #eeeeee }
+
 ul.auto-toc {
   list-style-type: none }
 
@@ -286,7 +292,6 @@ ul.auto-toc {
 <body>
 <div class="document" id="zounds">
 <h1 class="title">zounds</h1>
-
 <p>'zounds' is a client-server setup for running many parallel commands
 (typically BLAST) on clusters of computers.  It uses XML-RPC to
 coordinate between the server &amp; clients.</p>
@@ -298,8 +303,8 @@ you want to use for post-processing (e.g. the 'blastparser' Python
 module).  All of the sequences and configuration information is
 supplied by the server to the zounds-worker; all of the actual source
 code needs to be on the client machine where zounds-worker runs.</p>
-<div class="section" id="how-does-it-work">
-<h1>How does it work?</h1>
+<div class="section">
+<h1><a id="how-does-it-work" name="how-does-it-work">How does it work?</a></h1>
 <p>When you start 'zounds-worker', it contacts the 'zounds-central'
 server and requests config info and a set of sequences.  It then runs
 whatever command you've specified (e.g. BLAST) on the sequences
@@ -314,17 +319,17 @@ directly over the network.  However, the server never contacts the
 clients so the cluster can be hidden behind a firewall, proxy, and/or
 NAT.</p>
 </div>
-<div class="section" id="installing">
-<h1>Installing</h1>
-<p>You'll need to install <a class="reference external" href="http://www.python.org">Python</a>.</p>
+<div class="section">
+<h1><a id="installing" name="installing">Installing</a></h1>
+<p>You'll need to install <a class="reference" href="http://www.python.org">Python</a>.</p>
 <p>For the moment, you need to get zounds via 'git', at</p>
 <pre class="literal-block">
 git&#64;github.com:ctb/zounds.git
 </pre>
-<p>This can be done with 'git clone <a class="reference external" href="mailto:git&#64;github.com">git&#64;github.com</a>:ctb/zounds.git'.</p>
+<p>This can be done with 'git clone <a class="reference" href="http://github.com/ctb/zounds.git">http://github.com/ctb/zounds.git</a>'</p>
 </div>
-<div class="section" id="running-zounds-central">
-<h1>Running 'zounds-central'</h1>
+<div class="section">
+<h1><a id="running-zounds-central" name="running-zounds-central">Running 'zounds-central'</a></h1>
 <p>Briefly,</p>
 <pre class="literal-block">
 python zounds-central &lt;config file&gt; &lt;config section&gt;
@@ -334,10 +339,33 @@ python zounds-central &lt;config file&gt; &lt;config section&gt;
 accessible to the 'zounds-worker' processes, while the 'sequences' and
 'store_db' must be paths on the server.  This is because the sequences
 are sent from the server to the client, and but the actual comparison
-is done on the client.</p>
+is done on the client.  The same holds true for 'hmmscandb' in hmmer3
+runs: hmmscandb must be accessible on the <em>client</em>.</p>
 </div>
-<div class="section" id="an-example">
-<h1>An Example</h1>
+<div class="section">
+<h1><a id="running-zounds-worker" name="running-zounds-worker">Running 'zounds-worker'</a></h1>
+<p>The worker process runs on one (or more than one...) node, and
+requires no configuration other than a server URL:</p>
+<pre class="literal-block">
+python zounds-worker [ &lt;server URL&gt; ]
+</pre>
+<p>For example,</p>
+<pre class="literal-block">
+python zounds-worker http://localhost:5678/
+</pre>
+<p>connects to the server process running on 'localhost', configured to
+communicate on port 5678.</p>
+<p>'zounds-worker' takes an optional timeout parameter, given by '-t',
+which specifies a time (in minutes) at which the worker process will
+quit.  This is useful for queue systems that penalize processes that
+go over their configured time limit.  So,</p>
+<pre class="literal-block">
+python zounds-worker -t 1
+</pre>
+<p>will exit after 1 minute, overriding any other configuration options.</p>
+</div>
+<div class="section">
+<h1><a id="an-example" name="an-example">An Example</a></h1>
 <p>In one shell, run:</p>
 <pre class="literal-block">
 python zounds-central config-dev.rc test
@@ -354,9 +382,8 @@ python dump-raw-output test-output.db
 <p>You should get individual BLAST records for each of your query sequences,
 almost as if you'd simply run 'blastall' locally.</p>
 </div>
-<div class="section" id="retrieving-results">
-<h1>Retrieving results</h1>
-<p>Use</p>
+<div class="section">
+<h1><a id="retrieving-results" name="retrieving-results">Retrieving results</a></h1>
 <p>Use</p>
 <pre class="literal-block">
 python -i load_db.py &lt;output filename&gt;
@@ -381,8 +408,8 @@ for key in _db:
    value = db[key]
 </pre>
 </div>
-<div class="section" id="using-filters">
-<h1>Using filters</h1>
+<div class="section">
+<h1><a id="using-filters" name="using-filters">Using filters</a></h1>
 <p>Filters can be used both for parsing output and actual filtering of
 results.</p>
 <p>A 'filter' is specified in a config file as 'filter='; for example, in
@@ -395,8 +422,8 @@ the function 'parse_blast' on the stdout and stderr of the subprocess
 command; the result is then pickled and passed back to the server.</p>
 <p>If the filter returns an empty record (None, or (), &quot;&quot;, or whatever)
 then that too is pickled and returned.</p>
-<div class="section" id="parsing-the-blast-results-with-filters-parse-blast">
-<h2>Parsing the BLAST results with filters.parse_blast</h2>
+<div class="section">
+<h2><a id="parsing-the-blast-results-with-filters-parse-blast" name="parsing-the-blast-results-with-filters-parse-blast">Parsing the BLAST results with filters.parse_blast</a></h2>
 <p>For this filter, the blastparser and parse_blast modules must be installed.</p>
 <blockquote>
 filter=filters.parse_blast</blockquote>
@@ -408,8 +435,8 @@ for hit in record:
    print hit.subject_name, hit.total_expect
 </pre>
 </div>
-<div class="section" id="retrieving-only-a-subset-of-blast-results-with-filters-top-matches-only">
-<h2>Retrieving only a subset of BLAST results with filters.top_matches_only</h2>
+<div class="section">
+<h2><a id="retrieving-only-a-subset-of-blast-results-with-filters-top-matches-only" name="retrieving-only-a-subset-of-blast-results-with-filters-top-matches-only">Retrieving only a subset of BLAST results with filters.top_matches_only</a></h2>
 <p>Filters are useful for situations where you only need a small subset
 of the information: e.g. rather than pickling and encoding a full
 BLAST record, filters can reduce the full blastparser.BlastRecord to
@@ -418,8 +445,8 @@ something much smaller.</p>
 'top_matches_only'.</p>
 </div>
 </div>
-<div class="section" id="how-well-does-it-scale">
-<h1>How well does it scale?</h1>
+<div class="section">
+<h1><a id="how-well-does-it-scale" name="how-well-does-it-scale">How well does it scale?</a></h1>
 <p>I've BLASTed 200,000 sequences against the 'nr' database using 128
 simultaneous workers, without any problems. In theory the disk and
 network I/O should be the most time-consuming aspect of the server,
@@ -443,27 +470,33 @@ ignore 'em.  You can fix them if you like.  Personally I'd prefer to
 keep the worker code as simple as possible, but it should be fairly
 easy to hack performance improvements in if you need or want them.</p>
 </div>
-<div class="section" id="author-info">
-<h1>Author Info</h1>
-<p>zounds was hacked together by C. Titus Brown, &lt;<a class="reference external" href="mailto:titus&#64;idyll.org">titus&#64;idyll.org</a>&gt;.  It is
+<div class="section">
+<h1><a id="author-info" name="author-info">Author Info</a></h1>
+<p>zounds was hacked together by C. Titus Brown, &lt;<a class="reference" href="mailto:titus&#64;idyll.org">titus&#64;idyll.org</a>&gt;.  It is
 freely available under the BSD license.</p>
 </div>
-<div class="section" id="acknowledgements">
-<h1>Acknowledgements</h1>
+<div class="section">
+<h1><a id="acknowledgements" name="acknowledgements">Acknowledgements</a></h1>
 <p>Tracy Teal and Qingpeng Zhang alpha- and beta-tested zounds.</p>
 </div>
-<div class="section" id="questions">
-<h1>Questions?</h1>
-<p>Please contact the <a class="reference external" href="http://lists.idyll.org/listinfo/biology-in-python">biology-in-python</a> mailing list with
+<div class="section">
+<h1><a id="questions" name="questions">Questions?</a></h1>
+<p>Please contact the <a class="reference" href="http://lists.idyll.org/listinfo/biology-in-python">biology-in-python</a> mailing list with
 any questions or comments about zounds.</p>
 <p>--</p>
 <p>TODO:</p>
 <blockquote>
 <ul class="simple">
-<li>expand to HMMER</li>
-<li>use sqlite shelve instead, for storage results</li>
+<li>use sqlite shelve instead, for storing results</li>
 <li>fix/work with screed v2</li>
 <li>automatically set number of comparisons/seqs in db for BLAST and HMMER</li>
+<li>undone sequences flush/reset at end</li>
+</ul>
+</blockquote>
+<p>Bigger plans?</p>
+<blockquote>
+<ul class="simple">
+<li>status Web site for zounds-central</li>
 </ul>
 </blockquote>
 <p>--</p>

@@ -58,7 +58,32 @@ For BLAST, the only trickiness is that the 'blastdb' must be a path
 accessible to the 'zounds-worker' processes, while the 'sequences' and
 'store_db' must be paths on the server.  This is because the sequences
 are sent from the server to the client, and but the actual comparison
-is done on the client.
+is done on the client.  The same holds true for 'hmmscandb' in hmmer3
+runs: hmmscandb must be accessible on the *client*.
+
+Running 'zounds-worker'
+=======================
+
+The worker process runs on one (or more than one...) node, and
+requires no configuration other than a server URL: ::
+
+  python zounds-worker [ <server URL> ]
+
+For example, ::
+
+  python zounds-worker http://localhost:5678/
+
+connects to the server process running on 'localhost', configured to
+communicate on port 5678.
+
+'zounds-worker' takes an optional timeout parameter, given by '-t',
+which specifies a time (in minutes) at which the worker process will
+quit.  This is useful for queue systems that penalize processes that
+go over their configured time limit.  So, ::
+
+  python zounds-worker -t 1
+
+will exit after 1 minute, overriding any other configuration options.
 
 An Example
 ==========
@@ -205,10 +230,11 @@ TODO:
  - fix/work with screed v2
  - automatically set number of comparisons/seqs in db for BLAST and HMMER
 
- - add seqs done/time to zounds-worker output
- - undone sequences flush/reset
+ - undone sequences flush/reset at end
 
- - document zounds-worker timeout
+Bigger plans?
+
+ - status Web site for zounds-central
 
 --
 
