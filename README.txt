@@ -83,8 +83,6 @@ almost as if you'd simply run 'blastall' locally.
 Retrieving results
 ==================
 
-Use
-
 Use ::
 
    python -i load_db.py <output filename>
@@ -203,10 +201,14 @@ any questions or comments about zounds.
 
 TODO:
  
- - expand to HMMER
- - use sqlite shelve instead, for storage results
+ - use sqlite shelve instead, for storing results
  - fix/work with screed v2
  - automatically set number of comparisons/seqs in db for BLAST and HMMER
+
+ - add seqs done/time to zounds-worker output
+ - undone sequences flush/reset
+
+ - document zounds-worker timeout
 
 --
 
